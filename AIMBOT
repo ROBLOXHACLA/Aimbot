@@ -1,0 +1,94 @@
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AimbloxGui"
+screenGui.Parent = PlayerGui
+
+-- Create Frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 200)
+frame.Position = UDim2.new(0.5, -150, 0.5, -100)
+frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+frame.Parent = screenGui
+
+-- Create Hitbox Slider
+local slider = Instance.new("TextButton")
+slider.Size = UDim2.new(0, 200, 0, 50)
+slider.Position = UDim2.new(0.5, -100, 0.5, -25)
+slider.Text = "Hitbox Size: 0"
+slider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+slider.Parent = frame
+
+-- Slider Value
+local hitboxSize = 0
+
+-- Function to update the hitbox size
+local function updateHitboxSize(value)
+    hitboxSize = value
+    slider.Text = "Hitbox Size: " .. hitboxSize
+end
+
+-- Slider Functionality
+slider.MouseButton1Down:Connect(function()
+    local userInputService = game:GetService("User InputService")
+    local initialPos = userInputService:GetMouseLocation().Y
+
+    local connection
+    connection = userInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = userInputService:GetMouseLocation().Y - initialPos
+            local newSize = math.clamp(hitboxSize + math.floor(delta / 5), 0, 100) -- Adjust sensitivity
+            updateHitboxSize(newSize)
+        end
+    end)
+
+    userInputService.InputEnded:Wait()
+    connection:Disconnect()
+end)
+
+-- Aim Assist Functionality
+local function highlightEnemies()
+    local closestEnemy = nil
+    local closestDistance = math.huge
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= Player and player.Team ~= Player.Team then
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local distance = (player.Character.HumanoidRootPart.Position - Player.Character.HumanoidRootPart.Position).magnitude
+                if distance < closestDistance and distance <= hitboxSize then
+                    closestDistance = distance
+                    closestEnemy = player
+                end
+            end
+        end
+    end
+
+    -- Clear previous highlights
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Part") and obj.Name == "Highlight" then
+            obj:Destroy()
+        end
+    end
+
+    -- Highlight the closest enemy if found
+    if closestEnemy and closestEnemy.Character and closestEnemy.Character:FindFirstChild("HumanoidRootPart") then
+        local highlight = Instance.new("Part")
+        highlight.Name = "Highlight"
+        highlight.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+        highlight.Position = closestEnemy.Character.HumanoidRootPart.Position
+        highlight.Anchored = true
+        highlight.CanCollide = false
+        highlight.BrickColor = BrickColor.new("Bright red")
+        highlight.Transparency = 0.5
+        highlight.Parent = workspace
+    end
+end
+
+-- Main loop to continuously highlight enemies
+while true do
+    wait(0.1) -- Adjust frequency as needed
+    highlightEnemies()
+end
